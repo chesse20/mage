@@ -5,15 +5,14 @@ import mage.MageObject;
 import mage.ObjectColor;
 import mage.abilities.Ability;
 import mage.abilities.Mode;
-import mage.abilities.common.SagaAbility;
-import mage.abilities.common.WerewolfBackTriggeredAbility;
-import mage.abilities.common.WerewolfFrontTriggeredAbility;
+import mage.abilities.common.*;
 import mage.abilities.effects.Effect;
 import mage.abilities.effects.common.FightTargetsEffect;
 import mage.abilities.effects.common.counter.ProliferateEffect;
 import mage.abilities.effects.keyword.ScryEffect;
 import mage.abilities.keyword.*;
 import mage.cards.*;
+import mage.cards.decks.CardNameUtil;
 import mage.cards.decks.DeckCardLists;
 import mage.cards.decks.importer.DeckImporter;
 import mage.cards.repository.*;
@@ -58,7 +57,7 @@ public class VerifyCardDataTest {
 
     private static final Logger logger = Logger.getLogger(VerifyCardDataTest.class);
 
-    private static final String FULL_ABILITIES_CHECK_SET_CODES = "MAT"; // check ability text due mtgjson, can use multiple sets like MAT;CMD or * for all
+    private static final String FULL_ABILITIES_CHECK_SET_CODES = "LTR;LTC"; // check ability text due mtgjson, can use multiple sets like MAT;CMD or * for all
     private static final boolean CHECK_ONLY_ABILITIES_TEXT = false; // use when checking text locally, suppresses unnecessary checks and output messages
 
     private static final boolean AUTO_FIX_SAMPLE_DECKS = false; // debug only: auto-fix sample decks by test_checkSampleDecks test run
@@ -132,6 +131,8 @@ public class VerifyCardDataTest {
         // subtype
         skipListCreate(SKIP_LIST_SUBTYPE);
         skipListAddName(SKIP_LIST_SUBTYPE, "UGL", "Miss Demeanor"); // uses multiple types as a joke card: Lady, of, Proper, Etiquette
+        skipListAddName(SKIP_LIST_SUBTYPE, "UGL", "Elvish Impersonators"); // subtype is "Elves" pun
+        skipListAddName(SKIP_LIST_SUBTYPE, "UND", "Elvish Impersonators");
 
         // number
         skipListCreate(SKIP_LIST_NUMBER);
@@ -498,7 +499,9 @@ public class VerifyCardDataTest {
             if (mageSet == null) {
                 missingSets = missingSets + 1;
                 missingCards = missingCards + refSet.cards.size();
-                info.add("Warning: missing set " + refSet.code + " - " + refSet.name + " (cards: " + refSet.cards.size() + ", date: " + refSet.releaseDate + ")");
+                if (!CHECK_ONLY_ABILITIES_TEXT) {
+                    info.add("Warning: missing set " + refSet.code + " - " + refSet.name + " (cards: " + refSet.cards.size() + ", date: " + refSet.releaseDate + ")");
+                }
                 continue;
             }
 
@@ -1363,7 +1366,14 @@ public class VerifyCardDataTest {
         List<Card> cardsList = new ArrayList<>(CardScanner.getAllCards());
         Map<String, List<Card>> setsWithTokens = new HashMap<>();
         for (Card card : cardsList) {
-            String allRules = String.join(" ", card.getRules()).toLowerCase(Locale.ENGLISH);
+            // must check all card parts (example: Mila, Crafty Companion with Lukka Emblem)
+            String allRules = CardUtil.getObjectPartsAsObjects(card)
+                    .stream()
+                    .map(obj -> (Card) obj)
+                    .map(Card::getRules)
+                    .flatMap(Collection::stream)
+                    .map(r -> r.toLowerCase(Locale.ENGLISH))
+                    .collect(Collectors.joining("; "));
             if ((allRules.contains("create") && allRules.contains("token"))
                     || (allRules.contains("get") && allRules.contains("emblem"))) {
                 List<Card> sourceCards = setsWithTokens.getOrDefault(card.getExpansionSetCode(), null);
@@ -1399,8 +1409,12 @@ public class VerifyCardDataTest {
                     String needTokenName = token.getName()
                             .replace(" Token", "")
                             .replace("Emblem ", "");
-                    // need add card name, so it will skip no name emblems like Sarkhan, the Dragonspeaker
+                    // cards with emblems don't use emblem's name, so check it in card name itself (example: Sarkhan, the Dragonspeaker)
+                    // also must check all card parts (example: Mila, Crafty Companion with Lukka Emblem)
                     if (sourceCards.stream()
+                            .map(CardUtil::getObjectPartsAsObjects)
+                            .flatMap(Collection::stream)
+                            .map(obj -> (Card) obj)
                             .map(card -> card.getName() + " - " + String.join(", ", card.getRules()))
                             .noneMatch(s -> s.contains(needTokenName))) {
                         warningsList.add("info, tok-data has un-used tokens: "
@@ -1561,7 +1575,7 @@ public class VerifyCardDataTest {
         MtgJsonCard ref = MtgJsonService.cardFromSet(card.getExpansionSetCode(), card.getName(), card.getCardNumber());
         if (ref != null) {
             checkAll(card, ref, cardIndex);
-        } else {
+        } else if (!CHECK_ONLY_ABILITIES_TEXT) {
             warn(card, "Can't find card in mtgjson to verify");
         }
     }
@@ -1572,9 +1586,6 @@ public class VerifyCardDataTest {
 
     private static boolean wasCheckedByAbilityText(MtgJsonCard ref) {
         // ignore already checked cards, so no bloated logs from duplicated cards
-        if (CHECK_ONLY_ABILITIES_TEXT) {
-            return true;
-        }
         if (checkedNames.contains(ref.getNameAsFace())) {
             return true;
         }
@@ -1731,6 +1742,16 @@ public class VerifyCardDataTest {
         // special check: back side in TDFC must be only night card
         if (card.getSecondCardFace() != null && !card.getSecondCardFace().isNightCard()) {
             fail(card, "abilities", "the back face of a double-faced card should be nightCard = true");
+        }
+
+        // special check: siege ability must be used in double faced cards only
+        if (card.getAbilities().containsClass(SiegeAbility.class) && card.getSecondCardFace() == null) {
+            fail(card, "abilities", "miss second side settings in card with siege ability");
+        }
+
+        // special check: legendary spells need to have legendary spell ability
+        if (card.isLegendary() && !card.isPermanent() && !card.getAbilities().containsClass(LegendarySpellAbility.class)) {
+            fail(card, "abilities", "legendary nonpermanent cards need to have LegendarySpellAbility");
         }
 
         if (card.getAbilities().containsClass(MutateAbility.class)) {
@@ -1939,13 +1960,13 @@ public class VerifyCardDataTest {
 
         }
     }*/
-    private static final boolean compareText(String cardText, String refText, String name) {
+    private static boolean compareText(String cardText, String refText, String name) {
         return cardText.equals(refText)
                 || cardText.replace(name, name.split(", ")[0]).equals(refText)
                 || cardText.replace(name, name.split(" ")[0]).equals(refText);
     }
 
-    private static final boolean checkForEffect(Card card, Class<? extends Effect> effectClazz) {
+    private static boolean checkForEffect(Card card, Class<? extends Effect> effectClazz) {
         return card.getAbilities()
                 .stream()
                 .map(Ability::getModes)
@@ -1966,10 +1987,9 @@ public class VerifyCardDataTest {
     private void checkWrongAbilitiesTextEnd() {
         // TODO: implement tests result/stats by github actions to show in check message compared to prev version
         System.out.println(String.format(""));
-        System.out.println(String.format("Ability text checks ends with stats:"));
-        System.out.println(String.format(" - total: %d (%.2f)", wrongAbilityStatsTotal, 100.0));
-        System.out.println(String.format(" - good: %d (%.2f)", wrongAbilityStatsGood, wrongAbilityStatsGood * 100.0 / wrongAbilityStatsTotal));
-        System.out.println(String.format(" - bad: %d (%.2f)", wrongAbilityStatsBad, wrongAbilityStatsBad * 100.0 / wrongAbilityStatsTotal));
+        System.out.println(String.format("Stats for %d cards checked for abilities text:", wrongAbilityStatsTotal));
+        System.out.println(String.format(" - Cards with correct text:  %5d (%.2f)", wrongAbilityStatsGood, wrongAbilityStatsGood * 100.0 / wrongAbilityStatsTotal));
+        System.out.println(String.format(" - Cards with text errors:   %5d (%.2f)", wrongAbilityStatsBad, wrongAbilityStatsBad * 100.0 / wrongAbilityStatsTotal));
         System.out.println(String.format(""));
     }
 
@@ -2352,6 +2372,43 @@ public class VerifyCardDataTest {
         if (!errorsList.isEmpty()) {
             printMessages(errorsList);
             Assert.fail("Found " + errorsList.size() + " errors in the cubes, look at logs above for more details");
+        }
+    }
+
+    @Test
+    public void test_checkUnicodeCardNamesForImport() {
+        // deck import can catch real card names with non-ascii symbols like Arwen Undómiel, so it must be able to process it
+
+        // check unicode card
+        MtgJsonCard card = MtgJsonService.cardFromSet("LTR", "Arwen Undomiel", "194");
+        Assert.assertNotNull("test card must exists", card);
+        Assert.assertTrue(card.isUseUnicodeName());
+        Assert.assertEquals("Arwen Undomiel", card.getNameAsASCII());
+        Assert.assertEquals("Arwen Undómiel", card.getNameAsUnicode());
+        Assert.assertEquals("Arwen Undomiel", card.getNameAsFull());
+
+        // mtga format can contain /// in the names, so check it too
+        // see https://github.com/magefree/mage/pull/9855
+        Assert.assertEquals("Dusk // Dawn", CardNameUtil.normalizeCardName("Dusk /// Dawn"));
+
+        // check all converters
+        Collection<String> errorsList = new ArrayList<>();
+        MtgJsonService.sets().values().forEach(jsonSet -> {
+            jsonSet.cards.forEach(jsonCard -> {
+                if (jsonCard.isUseUnicodeName()) {
+                    String inName = jsonCard.getNameAsUnicode();
+                    String outName = CardNameUtil.normalizeCardName(inName);
+                    String needOutName = jsonCard.getNameAsFace();
+                    if (!outName.equals(needOutName)) {
+                        // how-to fix: add new unicode symbol in CardNameUtil.normalizeCardName
+                        errorsList.add(String.format("error, found unsupported unicode symbol in %s - %s", inName, jsonSet.code));
+                    }
+                }
+            });
+        });
+        printMessages(errorsList);
+        if (errorsList.size() > 0) {
+            Assert.fail(String.format("Card name converters contains unsupported unicode symbols in %d cards, see logs above", errorsList.size()));
         }
     }
 }

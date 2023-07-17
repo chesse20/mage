@@ -261,6 +261,14 @@ public class PlayerStub implements Player {
     }
 
     @Override
+    public void incrementLandsPlayed() {
+    }
+
+    @Override
+    public void resetLandsPlayed() {
+    }
+
+    @Override
     public int getLandsPlayed() {
         return 0;
     }
@@ -1417,11 +1425,6 @@ public class PlayerStub implements Player {
     @Override
     public FilterMana getPhyrexianColors() {
         return (new FilterMana());
-    }
-
-    @Override
-    public UUID getRingBearerId() {
-        return null;
     }
 
     @Override

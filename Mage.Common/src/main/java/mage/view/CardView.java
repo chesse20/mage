@@ -11,9 +11,7 @@ import mage.abilities.dynamicvalue.common.ManacostVariableValue;
 import mage.abilities.effects.Effect;
 import mage.abilities.effects.Effects;
 import mage.abilities.icon.CardIcon;
-import mage.abilities.icon.other.CommanderCardIcon;
-import mage.abilities.icon.other.FaceDownCardIcon;
-import mage.abilities.icon.other.VariableCostCardIcon;
+import mage.abilities.icon.CardIconImpl;
 import mage.abilities.keyword.AftermathAbility;
 import mage.cards.*;
 import mage.cards.mock.MockCard;
@@ -241,6 +239,10 @@ public class CardView extends SimpleCardView {
         if (cardView.cardIcons != null) {
             cardView.cardIcons.forEach(icon -> this.cardIcons.add(icon.copy()));
         }
+
+        this.playableStats = cardView.playableStats.copy();
+        this.isChoosable = cardView.isChoosable;
+        this.isSelected = cardView.isSelected;
     }
 
     /**
@@ -431,14 +433,18 @@ public class CardView extends SimpleCardView {
             });
             // face down
             if (permanent.isFaceDown(game)) {
-                this.cardIcons.add(FaceDownCardIcon.instance);
+                this.cardIcons.add(CardIconImpl.FACE_DOWN);
             }
-            // commander
             if (game != null) {
                 Player owner = game.getPlayer(game.getOwnerId(permanent));
+                // commander
                 if (owner != null && game.isCommanderObject(owner, permanent)) {
-                    this.cardIcons.add(CommanderCardIcon.instance);
+                    this.cardIcons.add(CardIconImpl.COMMANDER);
                 }
+            }
+            // Ring-bearer
+            if (permanent.isRingBearer()) {
+                this.cardIcons.add(CardIconImpl.RINGBEARER);
             }
         } else {
             if (card.isCopy()) {
@@ -471,7 +477,7 @@ public class CardView extends SimpleCardView {
                     // other like Stack (can show x icon on stack only, so use normal source)
                     costX = ManacostVariableValue.REGULAR.calculate(game, card.getSpellAbility(), null);
                 }
-                this.cardIcons.add(new VariableCostCardIcon(costX));
+                this.cardIcons.add(CardIconImpl.variableCost(costX));
             }
         }
 
@@ -698,6 +704,10 @@ public class CardView extends SimpleCardView {
         this.cardNumber = "";
         this.imageNumber = 0;
         this.rarity = Rarity.COMMON;
+
+        this.playableStats = emblem.playableStats.copy();
+        this.isChoosable = emblem.isChoosable();
+        this.isSelected = emblem.isSelected();
     }
 
     public CardView(DungeonView dungeon) {
@@ -716,6 +726,10 @@ public class CardView extends SimpleCardView {
         this.cardNumber = "";
         this.imageNumber = 0;
         this.rarity = Rarity.COMMON;
+
+        this.playableStats = dungeon.playableStats.copy();
+        this.isChoosable = dungeon.isChoosable();
+        this.isSelected = dungeon.isSelected();
     }
 
     public CardView(PlaneView plane) {
@@ -735,6 +749,10 @@ public class CardView extends SimpleCardView {
         this.cardNumber = "";
         this.imageNumber = 0;
         this.rarity = Rarity.COMMON;
+
+        this.playableStats = plane.playableStats.copy();
+        this.isChoosable = plane.isChoosable();
+        this.isSelected = plane.isSelected();
     }
 
     public CardView(Designation designation, StackAbility stackAbility) {
@@ -754,6 +772,7 @@ public class CardView extends SimpleCardView {
         this.cardNumber = "";
         this.imageNumber = 0;
         this.rarity = Rarity.COMMON;
+        // no playable/chooseable marks for designations
     }
 
     public CardView(boolean empty) {

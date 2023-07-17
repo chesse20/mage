@@ -209,6 +209,9 @@ public interface Player extends MageItem, Copyable<Player> {
 
     Cards getHand();
 
+    void incrementLandsPlayed();
+    void resetLandsPlayed();
+
     int getLandsPlayed();
 
     int getLandsPerTurn();
@@ -567,11 +570,11 @@ public interface Player extends MageItem, Copyable<Player> {
 
     void revealCards(Ability source, Cards cards, Game game);
 
-    void revealCards(String titelSuffix, Cards cards, Game game);
+    void revealCards(String titleSuffix, Cards cards, Game game);
 
-    void revealCards(Ability source, String titelSuffix, Cards cards, Game game);
+    void revealCards(Ability source, String titleSuffix, Cards cards, Game game);
 
-    void revealCards(String titelSuffix, Cards cards, Game game, boolean postToLog);
+    void revealCards(String titleSuffix, Cards cards, Game game, boolean postToLog);
 
     /**
      * Adds the cards to the reveal window and adds the source object's id name
@@ -1079,8 +1082,6 @@ public interface Player extends MageItem, Copyable<Player> {
      * @return
      */
     FilterMana getPhyrexianColors();
-
-    UUID getRingBearerId();
 
     Permanent getRingBearer(Game game);
 

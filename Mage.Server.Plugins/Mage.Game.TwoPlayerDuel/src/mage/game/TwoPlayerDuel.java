@@ -15,8 +15,12 @@ public class TwoPlayerDuel extends GameImpl {
         this(attackOption, range, mulligan, startLife, 60);
     }
 
-    public TwoPlayerDuel(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int startingLife, int startingHandSize) {
-        super(attackOption, range, mulligan, startingLife, startingHandSize);
+    public TwoPlayerDuel(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int startingLife, int minimumDeckSize) {
+        this(attackOption, range, mulligan, startingLife, minimumDeckSize, 7);
+    }
+
+    public TwoPlayerDuel(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int startingLife, int minimumDeckSize, int startingHandSize) {
+        super(attackOption, range, mulligan, startingLife, minimumDeckSize, startingHandSize);
     }
 
     public TwoPlayerDuel(final TwoPlayerDuel game) {

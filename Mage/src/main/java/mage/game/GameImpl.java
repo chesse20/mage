@@ -145,6 +145,7 @@ public abstract class GameImpl implements Game {
     private int priorityTime; // match time limit
     private final int startingLife;
     private final int startingHandSize;
+    private final int minimumDeckSize;
     protected transient PlayerList playerList; // auto-generated from state, don't copy
 
     // infinite loop check (temporary data, do not copy)
@@ -156,15 +157,16 @@ public abstract class GameImpl implements Game {
     // temporary store for income concede commands, don't copy
     private final LinkedList<UUID> concedingPlayers = new LinkedList<>();
 
-    public GameImpl(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int startingLife, int startingHandSize) {
+    public GameImpl(MultiplayerAttackOption attackOption, RangeOfInfluence range, Mulligan mulligan, int startingLife, int minimumDeckSize, int startingHandSize) {
         this.id = UUID.randomUUID();
         this.range = range;
         this.mulligan = mulligan;
         this.attackOption = attackOption;
         this.state = new GameState();
         this.startingLife = startingLife;
-        this.executingRollback = false;
         this.startingHandSize = startingHandSize;
+        this.executingRollback = false;
+        this.minimumDeckSize = minimumDeckSize;
 
         initGameDefaultWatchers();
     }
@@ -252,6 +254,7 @@ public abstract class GameImpl implements Game {
         this.priorityTime = game.priorityTime;
         this.startingLife = game.startingLife;
         this.startingHandSize = game.startingHandSize;
+        this.minimumDeckSize = game.minimumDeckSize;
         //this.playerList = game.playerList; // auto-generated list, don't copy
 
         // loop check code, no need to copy
@@ -589,7 +592,10 @@ public abstract class GameImpl implements Game {
         }
         player.chooseRingBearer(this);
         getOrCreateTheRing(playerId).addNextAbility(this);
-        fireEvent(GameEvent.getEvent(GameEvent.EventType.TEMPTED_BY_RING, player.getRingBearerId(), null, playerId));
+
+        Permanent ringbearer = player.getRingBearer(this);
+        UUID ringbearerId = ringbearer == null ? null : ringbearer.getId();
+        fireEvent(GameEvent.getEvent(GameEvent.EventType.TEMPTED_BY_RING, ringbearerId, null, playerId));
     }
 
     @Override
@@ -1033,25 +1039,26 @@ public abstract class GameImpl implements Game {
     private boolean playExtraTurns() {
         //20091005 - 500.7
         TurnMod extraTurn = getNextExtraTurn();
-        while (extraTurn != null) {
-            GameEvent event = new GameEvent(GameEvent.EventType.PLAY_TURN, null, null, extraTurn.getPlayerId());
-            if (!replaceEvent(event)) {
-                Player extraPlayer = this.getPlayer(extraTurn.getPlayerId());
-                if (extraPlayer != null && extraPlayer.canRespond()) {
-                    state.setExtraTurn(true);
-                    state.setTurnId(extraTurn.getId());
-                    if (!this.isSimulation()) {
-                        informPlayers(extraPlayer.getLogName() + " takes an extra turn");
-                    }
-                    if (!playTurn(extraPlayer)) {
-                        return false;
+        try {
+            while (extraTurn != null) {
+                GameEvent event = new GameEvent(GameEvent.EventType.PLAY_TURN, null, null, extraTurn.getPlayerId());
+                if (!replaceEvent(event)) {
+                    Player extraPlayer = this.getPlayer(extraTurn.getPlayerId());
+                    if (extraPlayer != null && extraPlayer.canRespond()) {
+                        state.setExtraTurnId(extraTurn.getId());
+                        if (!this.isSimulation()) {
+                            informPlayers(extraPlayer.getLogName() + " takes an extra turn");
+                        }
+                        if (!playTurn(extraPlayer)) {
+                            return false;
+                        }
                     }
                 }
+                extraTurn = getNextExtraTurn();
             }
-            extraTurn = getNextExtraTurn();
+        } finally {
+            state.setExtraTurnId(null);
         }
-        state.setTurnId(null);
-        state.setExtraTurn(false);
         return true;
     }
 
@@ -1169,7 +1176,7 @@ public abstract class GameImpl implements Game {
                 for (Ability ability : card.getAbilities(this)) {
                     if (ability instanceof CompanionAbility) {
                         CompanionAbility companionAbility = (CompanionAbility) ability;
-                        if (companionAbility.isLegal(cards, startingHandSize)) {
+                        if (companionAbility.isLegal(cards, minimumDeckSize)) {
                             potentialCompanions.add(card);
                             break;
                         }
@@ -1249,7 +1256,6 @@ public abstract class GameImpl implements Game {
         sendStartMessage(choosingPlayer, startingPlayer);
 
         //20091005 - 103.3
-        int startingHandSize = 7;
         for (UUID playerId : state.getPlayerList(startingPlayerId)) {
             Player player = getPlayer(playerId);
             if (!gameOptions.testMode || player.getLife() == 0) {

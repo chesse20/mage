@@ -26,7 +26,6 @@ import mage.filter.common.FilterControlledPermanent;
 import mage.game.Game;
 import mage.game.events.GameEvent;
 import mage.game.permanent.Permanent;
-import mage.game.stack.StackObject;
 import mage.players.Player;
 import mage.util.CardUtil;
 import mage.abilities.hint.common.CountersOnPermanentsHint;
@@ -36,7 +35,7 @@ import mage.abilities.hint.common.CountersOnPermanentsHint;
  */
 public final class TomBombadil extends CardImpl {
 
-    private static final FilterPermanent filter = new FilterControlledPermanent(SubType.SAGA);
+    private static final FilterPermanent filter = new FilterControlledPermanent(SubType.SAGA, "Sagas you control");
     private static final CountersOnPermanentsCondition condition = new CountersOnPermanentsCondition(filter,
             CounterType.LORE, ComparisonType.MORE_THAN, 3);
     private static final CountersOnPermanentsHint hint = new CountersOnPermanentsHint(condition);
@@ -57,14 +56,14 @@ public final class TomBombadil extends CardImpl {
                 condition,
                 "As long as there are four or more lore counters among Sagas you control, {this} has hexproof"));
         ability.addEffect(new ConditionalContinuousEffect(
-                new GainAbilitySourceEffect(IndestructibleAbility.getInstance()), condition, "and has indestructible"));
+                new GainAbilitySourceEffect(IndestructibleAbility.getInstance()), condition, "and indestructible"));
         this.addAbility(ability.addHint(hint));
 
         // Whenever the final chapter ability of a Saga you control resolves, reveal
         // cards from the top of your library until you reveal a Saga card. Put that
         // card onto the battlefield and the rest on the bottom of your library in a
         // random order. This ability triggers only once each turn.
-        this.addAbility(new TomBombadilTriggeredAbility().setTriggersOnce(true));
+        this.addAbility(new TomBombadilTriggeredAbility().setTriggersOnceEachTurn(true));
     }
 
     private TomBombadil(final TomBombadil card) {
@@ -81,6 +80,7 @@ class TomBombadilTriggeredAbility extends TriggeredAbilityImpl {
 
     public TomBombadilTriggeredAbility() {
         super(Zone.BATTLEFIELD, new TomBombadilEffect(), false);
+        setTriggerPhrase("Whenever the final chapter ability of a Saga you control resolves, ");
     }
 
     public TomBombadilTriggeredAbility(final TomBombadilTriggeredAbility ability) {
@@ -139,10 +139,6 @@ class TomBombadilTriggeredAbility extends TriggeredAbilityImpl {
         return SagaAbility.isFinalAbility(triggeredAbility, maxChapter);
     }
 
-    @Override
-    public String getRule() {
-        return "Whenever the final chapter ability of a Saga you control resolves, reveal cards from the top of your library until you reveal a Saga card. Put that card onto the battlefield and the rest on the bottom of your library in a random order.";
-    }
 }
 
 // From PrismaticBridgeEffect

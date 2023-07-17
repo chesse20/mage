@@ -14,7 +14,7 @@ import mage.game.permanent.Permanent;
 /**
  * @author BetaSteward_at_googlemail.com
  */
-public class GainAbilitySourceEffect extends ContinuousEffectImpl implements SourceEffect {
+public class GainAbilitySourceEffect extends ContinuousEffectImpl {
 
     protected Ability ability;
     // shall a card gain the ability (otherwise permanent)
@@ -35,7 +35,8 @@ public class GainAbilitySourceEffect extends ContinuousEffectImpl implements Sou
 
     public GainAbilitySourceEffect(Ability ability, Duration duration, boolean onCard) {
         this(ability, duration, onCard, false);
-        staticText = "{this} gains " + ability.getRule() + ' ' + duration.toString();
+        staticText = "{this} gains " + ability.getRule()
+                + (duration.toString().isEmpty() ? "" : ' ' + duration.toString());
     }
 
     public GainAbilitySourceEffect(Ability ability, Duration duration, boolean onCard, boolean noStaticText) {

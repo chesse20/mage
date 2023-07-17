@@ -927,8 +927,9 @@ public class NewTournamentDialog extends MageDialog {
     }
 
     private void setNumberOfSwissRoundsMin(int numPlayers) {
-        // set the number of minimum swiss rounds related to the number of players
-        int minRounds = (int) Math.ceil(Math.log(numPlayers + 1) / Math.log(2));
+        // set 3 rounds default if more than 4 players
+        // don't set 4 rounds by default, as 3 rounds generally preferred
+        int minRounds = (numPlayers + 1 > 4) ? 3 : 2;
         int newValue = Math.max((Integer) spnNumRounds.getValue(), minRounds);
         this.spnNumRounds.setModel(new SpinnerNumberModel(newValue, 2, 10, 1));
         this.pack();
@@ -1329,6 +1330,9 @@ public class NewTournamentDialog extends MageDialog {
             tOptions.getMatchOptions().setDeckType((String) this.cbDeckType.getSelectedItem());
             tOptions.getMatchOptions().setGameType(((GameTypeView) this.cbGameType.getSelectedItem()).getName());
             tOptions.getMatchOptions().setLimited(tOptions.getMatchOptions().getDeckType().startsWith("Limited"));
+            if (tOptions.getMatchOptions().getDeckType().startsWith("Variant Magic - Freeform Unlimited Commander")) {
+                tOptions.getMatchOptions().setLimited(true); // limited-style sideboarding with unlimited basics enabled for Freeform Unlimited Commander
+            }
         }
 
         String serverAddress = SessionHandler.getSession().getServerHostname().orElse("");

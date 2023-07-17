@@ -37,7 +37,8 @@ public class ExileFromHandCost extends CostImpl {
      */
     public ExileFromHandCost(TargetCardInHand target, boolean setXFromCMC) {
         this.addTarget(target);
-        this.text = "exile " + target.getDescription();
+        this.text = "exile " + target.getDescription() +
+                (target.getDescription().contains("from your hand") ? "" : " from your hand");
         this.setXFromCMC = setXFromCMC;
     }
 
@@ -63,7 +64,7 @@ public class ExileFromHandCost extends CostImpl {
                 this.cards.add(card);
             }
             Cards cardsToExile = new CardsImpl();
-            cardsToExile.addAll(cards);
+            cardsToExile.addAllCards(cards);
             player.moveCards(cardsToExile, Zone.EXILED, ability, game);
             paid = true;
             if (setXFromCMC) {
