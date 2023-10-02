@@ -12,6 +12,7 @@ import mage.players.Player;
 import mage.util.CardUtil;
 
 /**
+ * @author emerald000 (edited from getEnergyCountersControllerEffect)
  * @author ChesseTheWasp
  */
 public class GetResourceCountersControllerEffect extends OneShotEffect {
